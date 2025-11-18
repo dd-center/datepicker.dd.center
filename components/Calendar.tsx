@@ -56,6 +56,8 @@ export default function Calendar({
   const [dragStartDate, setDragStartDate] = useState<Date | null>(null)
   const [dragEndDate, setDragEndDate] = useState<Date | null>(null)
   const [dragMode, setDragMode] = useState<'select' | 'deselect'>('select')
+  const [dragAvailabilityStatus, setDragAvailabilityStatus] = useState<DateStatus>(null)
+  const [justFinishedDrag, setJustFinishedDrag] = useState(false)
   const calendarRef = useRef<HTMLDivElement>(null)
 
   const dateLocale = locale === 'zh' ? zhCN : undefined
@@ -150,11 +152,27 @@ export default function Calendar({
     setIsDragging(true)
     setDragStartDate(date)
     setDragEndDate(null)
+    setJustFinishedDrag(false) // Reset drag flag on new mousedown
 
     if (mode === 'select') {
       // Determine drag mode based on whether the start date is selected
       const isSelected = selectedDates.includes(dateStr)
       setDragMode(isSelected ? 'deselect' : 'select')
+    } else if (mode === 'availability') {
+      // Determine the status to apply based on the current status of the start date
+      const currentStatus = availability[dateStr]
+      // Cycle to next status: null -> available -> maybe -> unavailable -> null
+      let newStatus: DateStatus
+      if (!currentStatus) {
+        newStatus = 'available'
+      } else if (currentStatus === 'available') {
+        newStatus = 'maybe'
+      } else if (currentStatus === 'maybe') {
+        newStatus = 'unavailable'
+      } else {
+        newStatus = null
+      }
+      setDragAvailabilityStatus(newStatus)
     }
   }
 
@@ -197,14 +215,44 @@ export default function Calendar({
         const newDates = selectedDates.filter(d => !datesInRange.includes(d))
         onDatesChange(newDates)
       }
+    } else if (mode === 'availability' && onAvailabilityChange) {
+      // Calculate all dates in the drag range
+      const start = dragEndDate
+        ? minDate([dragStartDate, dragEndDate])
+        : dragStartDate
+      const end = dragEndDate
+        ? maxDate([dragStartDate, dragEndDate])
+        : dragStartDate
+
+      const newAvailability = { ...availability }
+      let currentDate = start
+      while (currentDate <= end) {
+        const dateStr = format(currentDate, 'yyyy-MM-dd')
+        // Only update dates that are in possibleDates
+        if (possibleDates.length === 0 || possibleDates.includes(dateStr)) {
+          newAvailability[dateStr] = dragAvailabilityStatus
+        }
+        currentDate = addDays(currentDate, 1)
+      }
+
+      onAvailabilityChange(newAvailability)
     }
 
     setIsDragging(false)
     setDragStartDate(null)
     setDragEndDate(null)
-  }, [isDragging, dragStartDate, dragEndDate, dragMode, mode, selectedDates, onDatesChange])
+    setJustFinishedDrag(true) // Mark that we just finished a drag
+
+    // Reset the flag after a short delay to allow future clicks
+    setTimeout(() => setJustFinishedDrag(false), 50)
+  }, [isDragging, dragStartDate, dragEndDate, dragMode, dragAvailabilityStatus, mode, selectedDates, availability, possibleDates, onDatesChange, onAvailabilityChange])
 
   const handleClick = (date: Date) => {
+    // Don't handle click if we just finished a drag (to avoid double-triggering)
+    if (justFinishedDrag) {
+      return
+    }
+
     const dateStr = format(date, 'yyyy-MM-dd')
 
     if (mode === 'select') {
@@ -394,20 +442,27 @@ export default function Calendar({
 
       {/* Legend for availability mode */}
       {mode === 'availability' && !showHeatmap && (
-        <div className="mt-4 flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500"></div>
-            <span>{locale === 'zh' ? '可用' : 'Available'}</span>
+        <>
+          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-500"></div>
+              <span>{locale === 'zh' ? '可用' : 'Available'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-yellow-500"></div>
+              <span>{locale === 'zh' ? '也许' : 'Maybe'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-red-500"></div>
+              <span>{locale === 'zh' ? '不可用' : 'Not Available'}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-500"></div>
-            <span>{locale === 'zh' ? '也许' : 'Maybe'}</span>
+          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            {locale === 'zh'
+              ? '提示：点击选择单个日期，拖动选择多个日期'
+              : 'Tip: Click to select single dates, drag to select multiple dates'}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-red-500"></div>
-            <span>{locale === 'zh' ? '不可用' : 'Not Available'}</span>
-          </div>
-        </div>
+        </>
       )}
 
       {/* Legend for heatmap */}

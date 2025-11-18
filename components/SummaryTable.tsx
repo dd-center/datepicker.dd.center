@@ -17,12 +17,16 @@ interface SummaryTableProps {
   possibleDates: string[]
   responses: Response[]
   locale: 'zh' | 'en'
+  onEditResponse?: (userName: string) => void
+  onDeleteResponse?: (userName: string) => void
 }
 
 export default function SummaryTable({
   possibleDates,
   responses,
-  locale
+  locale,
+  onEditResponse,
+  onDeleteResponse
 }: SummaryTableProps) {
   const dateLocale = locale === 'zh' ? zhCN : undefined
 
@@ -94,7 +98,33 @@ export default function SummaryTable({
           {responses.map((response) => (
             <tr key={response.id}>
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 font-medium sticky left-0 bg-white dark:bg-gray-800 z-10">
-                {response.user_name}
+                <div className="flex items-center gap-2">
+                  <span>{response.user_name}</span>
+                  {(onEditResponse || onDeleteResponse) && (
+                    <div className="flex gap-1">
+                      {onEditResponse && (
+                        <button
+                          type="button"
+                          onClick={() => onEditResponse(response.user_name)}
+                          className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded"
+                          title={locale === 'zh' ? '编辑' : 'Edit'}
+                        >
+                          {locale === 'zh' ? '编辑' : 'Edit'}
+                        </button>
+                      )}
+                      {onDeleteResponse && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteResponse(response.user_name)}
+                          className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded"
+                          title={locale === 'zh' ? '删除' : 'Delete'}
+                        >
+                          {locale === 'zh' ? '删除' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </td>
               {possibleDates.map(date => {
                 const status = response.availability[date]

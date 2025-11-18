@@ -49,6 +49,11 @@ export default function EventPage() {
   const [editPasswordInput, setEditPasswordInput] = useState('')
   const [showEditPasswordInput, setShowEditPasswordInput] = useState(false)
 
+  const [showResponsePasswordDialog, setShowResponsePasswordDialog] = useState(false)
+  const [responsePasswordInput, setResponsePasswordInput] = useState('')
+  const [currentResponseAction, setCurrentResponseAction] = useState<{ type: 'edit' | 'delete', userName: string } | null>(null)
+  const [editingUserPassword, setEditingUserPassword] = useState<string | null>(null)
+
   // Set page title
   useEffect(() => {
     if (event) {
@@ -121,7 +126,8 @@ export default function EventPage() {
 
     try {
       const userData = getUserData(eventId)
-      const password = userData?.password
+      // Use editing password if available, otherwise use stored password
+      const password = editingUserPassword || userData?.password
 
       const response = await fetch('/api/responses', {
         method: 'POST',
@@ -155,6 +161,9 @@ export default function EventPage() {
 
       // Refresh event data
       await fetchEvent()
+
+      // Clear editing password after successful submission
+      setEditingUserPassword(null)
     } catch (err: any) {
       setError(err.message || tCommon('error'))
     } finally {
@@ -240,6 +249,180 @@ export default function EventPage() {
     return heatmap
   }
 
+  const handleEditResponseClick = (userName: string) => {
+    setCurrentResponseAction({ type: 'edit', userName })
+
+    // Check if we have the password in localStorage
+    const userData = getUserData(eventId)
+    if (userData?.name === userName && userData?.password) {
+      // Auto-load the user's response for editing and store password
+      setEditingUserPassword(userData.password)
+      loadResponseForEditing(userName)
+    } else {
+      // Show password dialog
+      setShowResponsePasswordDialog(true)
+    }
+  }
+
+  const handleDeleteResponseClick = (userName: string) => {
+    setCurrentResponseAction({ type: 'delete', userName })
+
+    // Check if we have the password in localStorage
+    const userData = getUserData(eventId)
+    if (userData?.name === userName && userData?.password) {
+      // Auto-delete with stored password
+      deleteResponse(userName, userData.password)
+    } else {
+      // Show password dialog
+      setShowResponsePasswordDialog(true)
+    }
+  }
+
+  const loadResponseForEditing = (userName: string) => {
+    if (!event) return
+
+    const response = event.responses.find(r => r.user_name === userName)
+    if (response) {
+      setUserName(userName)
+      setAvailability(response.availability)
+      // Scroll to availability form
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const deleteResponse = async (userName: string, password: string) => {
+    setError('')
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('/api/responses', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          eventId,
+          userName,
+          password
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete response')
+      }
+
+      // Refresh event data
+      await fetchEvent()
+      setShowResponsePasswordDialog(false)
+      setResponsePasswordInput('')
+      setCurrentResponseAction(null)
+    } catch (err: any) {
+      setError(err.message || tCommon('error'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCreatorDeleteResponse = async (userName: string) => {
+    setError('')
+
+    // Get creator password
+    let creatorPassword = getCreatorPassword(eventId)
+
+    // If no password in localStorage and password input is shown, use the input
+    if (!creatorPassword && showEditPasswordInput && editPasswordInput.trim()) {
+      creatorPassword = editPasswordInput.trim()
+    }
+
+    if (!creatorPassword) {
+      setError(locale === 'zh' ? '未找到管理密码' : 'Creator password not found')
+      return
+    }
+
+    if (!confirm(locale === 'zh' ? `确定要删除 ${userName} 的回复吗？` : `Are you sure you want to delete ${userName}'s response?`)) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('/api/responses', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          eventId,
+          userName,
+          password: creatorPassword
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete response')
+      }
+
+      // Refresh event data
+      await fetchEvent()
+    } catch (err: any) {
+      setError(err.message || tCommon('error'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResponsePasswordSubmit = async () => {
+    if (!currentResponseAction) return
+
+    if (!responsePasswordInput.trim()) {
+      setError(locale === 'zh' ? '请输入密码' : 'Please enter password')
+      return
+    }
+
+    if (currentResponseAction.type === 'edit') {
+      // Verify password and load response
+      setError('')
+      setIsSubmitting(true)
+
+      try {
+        // Try to submit with the password to verify it
+        const userData = getUserData(eventId)
+        const response = await fetch('/api/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            eventId,
+            userName: currentResponseAction.userName,
+            availability: event?.responses.find(r => r.user_name === currentResponseAction.userName)?.availability || {},
+            password: responsePasswordInput.trim()
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Invalid password')
+        }
+
+        // Password is valid, load the response for editing and store the password
+        setEditingUserPassword(responsePasswordInput.trim())
+        loadResponseForEditing(currentResponseAction.userName)
+        setShowResponsePasswordDialog(false)
+        setResponsePasswordInput('')
+        setCurrentResponseAction(null)
+      } catch (err: any) {
+        setError(err.message || tCommon('error'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    } else if (currentResponseAction.type === 'delete') {
+      await deleteResponse(currentResponseAction.userName, responsePasswordInput.trim())
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -303,6 +486,29 @@ export default function EventPage() {
                     locale={locale as 'zh' | 'en'}
                   />
                 </div>
+
+                {/* Response management */}
+                {event.responses.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">
+                      {locale === 'zh' ? '管理回复' : 'Manage Responses'}
+                    </label>
+                    <div className="border border-gray-300 dark:border-gray-600 rounded-md divide-y divide-gray-300 dark:divide-gray-600">
+                      {event.responses.map((response) => (
+                        <div key={response.id} className="flex items-center justify-between p-3">
+                          <span className="font-medium">{response.user_name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCreatorDeleteResponse(response.user_name)}
+                            className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded"
+                          >
+                            {locale === 'zh' ? '删除' : 'Delete'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {error && (
                   <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-md">
@@ -429,6 +635,8 @@ export default function EventPage() {
               possibleDates={event.possibleDates}
               responses={event.responses}
               locale={locale as 'zh' | 'en'}
+              onEditResponse={handleEditResponseClick}
+              onDeleteResponse={handleDeleteResponseClick}
             />
           </div>
         </div>
@@ -442,6 +650,63 @@ export default function EventPage() {
           locale={locale as 'zh' | 'en'}
           onClose={() => setShowPasswordDialog(false)}
         />
+      )}
+
+      {/* Response action password dialog */}
+      {showResponsePasswordDialog && currentResponseAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">
+              {currentResponseAction.type === 'edit'
+                ? (locale === 'zh' ? '编辑回复' : 'Edit Response')
+                : (locale === 'zh' ? '删除回复' : 'Delete Response')}
+            </h3>
+            <p className="mb-4 text-gray-600 dark:text-gray-400">
+              {locale === 'zh'
+                ? `请输入 ${currentResponseAction.userName} 的密码`
+                : `Please enter password for ${currentResponseAction.userName}`}
+            </p>
+            <input
+              type="password"
+              value={responsePasswordInput}
+              onChange={(e) => setResponsePasswordInput(e.target.value)}
+              placeholder={locale === 'zh' ? '输入密码' : 'Enter password'}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 mb-4"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleResponsePasswordSubmit()
+                }
+              }}
+            />
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-md">
+                {error}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleResponsePasswordSubmit}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-md"
+              >
+                {isSubmitting ? (locale === 'zh' ? '处理中...' : 'Processing...') : (locale === 'zh' ? '确认' : 'Confirm')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResponsePasswordDialog(false)
+                  setResponsePasswordInput('')
+                  setCurrentResponseAction(null)
+                  setError('')
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-700 rounded-md"
+              >
+                {locale === 'zh' ? '取消' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   )

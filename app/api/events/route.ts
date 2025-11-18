@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Generate event ID and password
     const eventId = uuidv4()
-    const password = generatePassword(12)
+    const password = generatePassword()
     const passwordHash = await hashPassword(password)
 
     // Save to database

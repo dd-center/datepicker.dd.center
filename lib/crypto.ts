@@ -10,8 +10,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash)
 }
 
-export function generatePassword(length: number = 12): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+export function generatePassword(length: number = 6): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz'
   let password = ''
   for (let i = 0; i < length; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length))
