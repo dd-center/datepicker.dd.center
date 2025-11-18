@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import Calendar from '@/components/Calendar'
 import SummaryTable from '@/components/SummaryTable'
@@ -46,6 +46,15 @@ export default function EventPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [editedDates, setEditedDates] = useState<string[]>([])
+  const [editPasswordInput, setEditPasswordInput] = useState('')
+  const [showEditPasswordInput, setShowEditPasswordInput] = useState(false)
+
+  // Set page title
+  useEffect(() => {
+    if (event) {
+      document.title = `${event.name} - ${locale === 'zh' ? '日期选择器' : 'Date Picker'}`
+    }
+  }, [event, locale])
 
   // Load event data
   useEffect(() => {
@@ -154,13 +163,22 @@ export default function EventPage() {
   }
 
   const handleEditEvent = async () => {
-    if (!isCreator || !event) return
+    if (!event) return
 
     setError('')
     setIsSubmitting(true)
 
     try {
-      const creatorPassword = getCreatorPassword(eventId)
+      let creatorPassword = getCreatorPassword(eventId)
+
+      // If no password in localStorage and password input is shown, use the input
+      if (!creatorPassword && showEditPasswordInput) {
+        if (!editPasswordInput.trim()) {
+          throw new Error(locale === 'zh' ? '请输入密码' : 'Please enter password')
+        }
+        creatorPassword = editPasswordInput.trim()
+      }
+
       if (!creatorPassword) {
         throw new Error('Creator password not found')
       }
@@ -178,10 +196,13 @@ export default function EventPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update event')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update event')
       }
 
       setIsEditing(false)
+      setShowEditPasswordInput(false)
+      setEditPasswordInput('')
       await fetchEvent()
     } catch (err: any) {
       setError(err.message || tCommon('error'))
@@ -195,6 +216,11 @@ export default function EventPage() {
     setEditedName(event.name)
     setEditedDates([...event.possibleDates])
     setIsEditing(true)
+
+    // If no creator password in localStorage, show password input
+    if (!getCreatorPassword(eventId)) {
+      setShowEditPasswordInput(true)
+    }
   }
 
   const calculateHeatmapData = (): Record<string, number> => {
@@ -239,6 +265,22 @@ export default function EventPage() {
             {isEditing ? (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
                 <h2 className="text-2xl font-bold mb-4">{t('editEvent')}</h2>
+
+                {showEditPasswordInput && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">
+                      {locale === 'zh' ? '活动管理密码' : 'Event Management Password'}
+                    </label>
+                    <input
+                      type="password"
+                      value={editPasswordInput}
+                      onChange={(e) => setEditPasswordInput(e.target.value)}
+                      placeholder={locale === 'zh' ? '输入活动管理密码' : 'Enter event management password'}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700"
+                    />
+                  </div>
+                )}
+
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-2">
                     {t('editName')}
@@ -261,8 +303,16 @@ export default function EventPage() {
                     locale={locale as 'zh' | 'en'}
                   />
                 </div>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-md">
+                    {error}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={handleEditEvent}
                     disabled={isSubmitting}
                     className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-md"
@@ -270,7 +320,13 @@ export default function EventPage() {
                     {t('saveChanges')}
                   </button>
                   <button
-                    onClick={() => setIsEditing(false)}
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setShowEditPasswordInput(false)
+                      setEditPasswordInput('')
+                      setError('')
+                    }}
                     className="px-4 py-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-700 rounded-md"
                   >
                     {t('cancel')}
@@ -282,14 +338,13 @@ export default function EventPage() {
                 <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
                   {event.name}
                 </h1>
-                {isCreator && (
-                  <button
-                    onClick={startEditing}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md"
-                  >
-                    {t('editEvent')}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md"
+                >
+                  {isCreator ? t('editEvent') : (locale === 'zh' ? '编辑活动（需要密码）' : 'Edit Event (Requires Password)')}
+                </button>
               </div>
             )}
           </div>
@@ -326,6 +381,7 @@ export default function EventPage() {
                     onAvailabilityChange={setAvailability}
                     possibleDates={event.possibleDates}
                     locale={locale as 'zh' | 'en'}
+                    showAllMonths={true}
                   />
                 </div>
 
@@ -356,6 +412,7 @@ export default function EventPage() {
                 showHeatmap={true}
                 heatmapData={calculateHeatmapData()}
                 locale={locale as 'zh' | 'en'}
+                showAllMonths={true}
               />
               <div className="mt-6 text-sm text-gray-600 dark:text-gray-400">
                 {locale === 'zh'
