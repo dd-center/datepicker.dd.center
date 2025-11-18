@@ -1,0 +1,52 @@
+{
+  "home": {
+    "title": "创建新活动",
+    "eventName": "活动名称",
+    "eventNamePlaceholder": "输入活动名称",
+    "selectDates": "选择可能的日期",
+    "selectDatesHint": "点击选择单个日期，拖动选择多个日期",
+    "createEvent": "创建活动",
+    "eventNameRequired": "请输入活动名称",
+    "datesRequired": "请至少选择一个日期"
+  },
+  "event": {
+    "title": "活动详情",
+    "possibleDates": "可选日期",
+    "yourName": "你的名字",
+    "yourNamePlaceholder": "输入你的名字",
+    "selectAvailability": "选择你的可用性",
+    "available": "可用",
+    "maybe": "也许",
+    "notAvailable": "不可用",
+    "submit": "提交",
+    "update": "更新",
+    "yourAvailability": "你的可用性",
+    "summary": "可用性汇总",
+    "editEvent": "编辑活动",
+    "saveChanges": "保存更改",
+    "cancel": "取消",
+    "editName": "编辑名称",
+    "editDates": "编辑日期",
+    "addDate": "添加日期",
+    "removeDate": "移除日期",
+    "nameRequired": "请输入你的名字",
+    "availabilityRequired": "请选择至少一个日期的可用性"
+  },
+  "password": {
+    "title": "重要：保存你的密码",
+    "creatorPassword": "活动管理密码",
+    "userPassword": "你的密码",
+    "description": "此密码只会显示一次。请妥善保管以便将来编辑。",
+    "copied": "已复制",
+    "copy": "复制密码",
+    "close": "关闭"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "出错了",
+    "success": "成功",
+    "back": "返回",
+    "save": "保存",
+    "delete": "删除"
+  }
+}

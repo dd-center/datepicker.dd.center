@@ -1,0 +1,52 @@
+{
+  "home": {
+    "title": "Create New Event",
+    "eventName": "Event Name",
+    "eventNamePlaceholder": "Enter event name",
+    "selectDates": "Select Possible Dates",
+    "selectDatesHint": "Click to select single dates, drag to select multiple dates",
+    "createEvent": "Create Event",
+    "eventNameRequired": "Please enter an event name",
+    "datesRequired": "Please select at least one date"
+  },
+  "event": {
+    "title": "Event Details",
+    "possibleDates": "Possible Dates",
+    "yourName": "Your Name",
+    "yourNamePlaceholder": "Enter your name",
+    "selectAvailability": "Select Your Availability",
+    "available": "Available",
+    "maybe": "Maybe",
+    "notAvailable": "Not Available",
+    "submit": "Submit",
+    "update": "Update",
+    "yourAvailability": "Your Availability",
+    "summary": "Availability Summary",
+    "editEvent": "Edit Event",
+    "saveChanges": "Save Changes",
+    "cancel": "Cancel",
+    "editName": "Edit Name",
+    "editDates": "Edit Dates",
+    "addDate": "Add Date",
+    "removeDate": "Remove Date",
+    "nameRequired": "Please enter your name",
+    "availabilityRequired": "Please select availability for at least one date"
+  },
+  "password": {
+    "title": "Important: Save Your Password",
+    "creatorPassword": "Event Management Password",
+    "userPassword": "Your Password",
+    "description": "This password will only be shown once. Please save it for future edits.",
+    "copied": "Copied",
+    "copy": "Copy Password",
+    "close": "Close"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "back": "Back",
+    "save": "Save",
+    "delete": "Delete"
+  }
+}
